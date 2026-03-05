@@ -1,0 +1,264 @@
+openapi: 3.1.0
+info:
+  title: ToDo API
+  version: 1.0.0
+  description: Next.js ToDoアプリのAPI仕様
+
+servers:
+  - url: http://localhost:3000/api
+    description: ローカル開発環境
+
+paths:
+  /todos:
+    get:
+      summary: ToDo一覧取得
+      operationId: getTodos
+      tags:
+        - todos
+      parameters:
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [high, medium, low]
+          description: 優先度でフィルタ
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: カテゴリでフィルタ
+        - name: completed
+          in: query
+          schema:
+            type: boolean
+          description: 完了状態でフィルタ
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Todo'
+              example:
+                - id: "550e8400-e29b-41d4-a716-446655440000"
+                  title: "買い物リスト"
+                  dueDate: "2026-03-10T00:00:00Z"
+                  priority: "high"
+                  category: "買い物"
+                  completed: false
+                  createdAt: "2026-03-05T10:00:00Z"
+
+    post:
+      summary: ToDo作成
+      operationId: createTodo
+      tags:
+        - todos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTodoInput'
+            example:
+              title: "レポート提出"
+              dueDate: "2026-03-15T00:00:00Z"
+              priority: "high"
+              category: "仕事"
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /todos/{id}:
+    patch:
+      summary: ToDo更新
+      operationId: updateTodo
+      tags:
+        - todos
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTodoInput'
+            example:
+              title: "レポート提出（修正済）"
+              completed: true
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      summary: ToDo削除
+      operationId: deleteTodo
+      tags:
+        - todos
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  schemas:
+    Todo:
+      type: object
+      required:
+        - id
+        - title
+        - priority
+        - category
+        - completed
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 一意の識別子
+        title:
+          type: string
+          maxLength: 100
+          description: タスク名
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: 期限日時
+        priority:
+          type: string
+          enum: [high, medium, low]
+          description: 優先度
+        category:
+          type: string
+          maxLength: 20
+          description: カテゴリ
+        completed:
+          type: boolean
+          description: 完了フラグ
+        createdAt:
+          type: string
+          format: date-time
+          description: 作成日時
+
+    CreateTodoInput:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: タスク名
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: 期限日時
+        priority:
+          type: string
+          enum: [high, medium, low]
+          default: medium
+          description: 優先度
+        category:
+          type: string
+          maxLength: 20
+          default: "一般"
+          description: カテゴリ
+
+    UpdateTodoInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: タスク名
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: 期限日時
+        priority:
+          type: string
+          enum: [high, medium, low]
+          description: 優先度
+        category:
+          type: string
+          maxLength: 20
+          description: カテゴリ
+        completed:
+          type: boolean
+          description: 完了フラグ
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: エラーコード
+        message:
+          type: string
+          description: ユーザー向けエラーメッセージ
+        fieldErrors:
+          type: object
+          description: フィールドごとのエラー
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+  responses:
+    BadRequest:
+      description: バリデーションエラー
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: "VALIDATION_ERROR"
+            message: "入力が不正です"
+            fieldErrors:
+              title: ["タスク名は必須です"]
+
+    NotFound:
+      description: リソースが見つからない
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: "NOT_FOUND"
+            message: "指定されたToDoが見つかりません"
